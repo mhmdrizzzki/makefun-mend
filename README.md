@@ -10,10 +10,15 @@
 
 ```sh
 node main.ts [options] [PATCH]   # apply an edit to the tree in the working directory
-node check.ts ../program/generator/practice.json   # the public practice checks
+node check.ts ../kit/hidden-spec-cli-01-run-20261122-kit/program/generator/practice.json
+node check.ts extra-checks.json   # additional contract edge cases
 ```
 
 `main.ts` is the tool; `runner.ts` hands a trial over to the env; `check.ts` runs the practice set; `SPEC.md` is the specification; `LICENSE` is MIT.
+
+All four formats and all three matching tiers are implemented. Verification on Node 22.23.2: **100/100 practice
+checks**, **112/112 additional contract cases**, and **10/10 generated stress, raw-byte and integrity checks**.
+See [HARDENING.md](HARDENING.md) for the contract audit and results.
 
 ---
 

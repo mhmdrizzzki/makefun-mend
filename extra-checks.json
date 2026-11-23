@@ -1,0 +1,567 @@
+{
+  "schema": "mend/extra-checks/v1",
+  "checks": [
+    {
+      "key": "c-empty-auto", "group": "cli", "family": "extra-cli",
+      "argv": [], "stdin": "", "files": {"keep": "untouched\n"},
+      "expect": {"exit": 2, "stdout": "error: format\n", "changes": {}}
+    },
+    {
+      "key": "c-empty-unified", "group": "cli", "family": "extra-cli",
+      "argv": ["--format=unified"], "stdin": "\n \t\n", "files": {},
+      "expect": {"exit": 2, "stdout": "error: parse 1\n", "changes": {}}
+    },
+    {
+      "key": "c-empty-search", "group": "cli", "family": "extra-cli",
+      "argv": ["--format=search-replace"], "stdin": "\n", "files": {},
+      "expect": {"exit": 2, "stdout": "error: parse 1\n", "changes": {}}
+    },
+    {
+      "key": "c-empty-v4a", "group": "cli", "family": "extra-cli",
+      "argv": ["--format=v4a"], "stdin": " \t\n", "files": {},
+      "expect": {"exit": 2, "stdout": "error: parse 1\n", "changes": {}}
+    },
+    {
+      "key": "c-empty-json", "group": "cli", "family": "extra-cli",
+      "argv": ["--format=json"], "stdin": "\n", "files": {},
+      "expect": {"exit": 2, "stdout": "error: parse 1\n", "changes": {}}
+    },
+    {
+      "key": "c-duplicate-format", "group": "cli", "family": "extra-cli",
+      "argv": ["--format=auto", "--format=json"], "stdin": "[]", "files": {},
+      "expect": {"exit": 2, "stdout": "error: usage\n", "changes": {}}
+    },
+    {
+      "key": "c-usage-before-no-patch", "group": "cli", "family": "extra-cli",
+      "argv": ["--check", "missing.patch", "--check"], "stdin": null, "files": {},
+      "expect": {"exit": 2, "stdout": "error: usage\n", "changes": {}}
+    },
+    {
+      "key": "c-duplicate-strict", "group": "cli", "family": "extra-cli",
+      "argv": ["--strict", "--strict"], "stdin": "[]", "files": {},
+      "expect": {"exit": 2, "stdout": "error: usage\n", "changes": {}}
+    },
+    {
+      "key": "c-format-case-sensitive", "group": "cli", "family": "extra-cli",
+      "argv": ["--format=JSON"], "stdin": "[]", "files": {},
+      "expect": {"exit": 2, "stdout": "error: usage\n", "changes": {}}
+    },
+    {
+      "key": "c-two-stdin-positionals", "group": "cli", "family": "extra-cli",
+      "argv": ["-", "-"], "stdin": "[]", "files": {},
+      "expect": {"exit": 2, "stdout": "error: usage\n", "changes": {}}
+    },
+    {
+      "key": "c-option-like-patch-name", "group": "cli", "family": "extra-cli",
+      "argv": ["--", "--strict"], "stdin": null,
+      "files": {"--strict": "{\"command\":\"create\",\"path\":\"out\",\"file_text\":\"ok\"}"},
+      "expect": {"exit": 0, "stdout": "A out\nok: 1 file\n", "changes": {"out": "ok"}}
+    },
+    {
+      "key": "c-options-after-patch-check", "group": "cli", "family": "extra-cli",
+      "argv": ["edit.patch", "--format=json", "--strict", "--check"], "stdin": null,
+      "files": {"f": "x", "edit.patch": "{\"command\":\"str_replace\",\"path\":\"f\",\"old_str\":\"x\",\"new_str\":\"y\"}"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {}}
+    },
+    {
+      "key": "c-json-detection-priority", "group": "cli", "family": "extra-cli",
+      "argv": [], "stdin": "{}\nf\n<<<<<<< SEARCH\nx\n=======\ny\n>>>>>>> REPLACE\n", "files": {"f": "x\n"},
+      "expect": {"exit": 2, "stdout": "error: parse 1\n", "changes": {}}
+    },
+    {
+      "key": "c-v4a-detection-priority", "group": "cli", "family": "extra-cli",
+      "argv": [], "stdin": "*** Begin Patch\n<<<<<<< SEARCH\n=======\n>>>>>>> REPLACE\n*** End Patch\n", "files": {},
+      "expect": {"exit": 2, "stdout": "error: parse 2\n", "changes": {}}
+    },
+    {
+      "key": "c-search-detection-priority", "group": "cli", "family": "extra-cli",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n-x\n+z\ng\n<<<<<<< SEARCH\nx\n=======\ny\n>>>>>>> REPLACE\n", "files": {"f": "x\n", "g": "x\n"},
+      "expect": {"exit": 0, "stdout": "M g\nok: 1 file\n", "changes": {"g": "y\n"}}
+    },
+    {
+      "key": "c-explicit-format-overrides-json", "group": "cli", "family": "extra-cli",
+      "argv": ["--format=unified"], "stdin": "{}\n--- f\n+++ f\n@@ -1 +1 @@\n-x\n+y\n", "files": {"f": "x\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "y\n"}}
+    },
+    {
+      "key": "p-all-unsafe-segments", "group": "cli", "family": "extra-paths",
+      "argv": [], "stdin": "[{\"command\":\"create\",\"path\":\"\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"/abs\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"a\\\\b\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"a//b\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"a/./b\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"a/../b\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"a/\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"ok\",\"file_text\":\"x\"}]", "files": {},
+      "expect": {"exit": 1, "stdout": "error: unsafe \nerror: unsafe /abs\nerror: unsafe a\\b\nerror: unsafe a//b\nerror: unsafe a/./b\nerror: unsafe a/../b\nerror: unsafe a/\nfailed: 7 of 8 edits\n", "changes": {}}
+    },
+    {
+      "key": "p-unified-destination-before-missing", "group": "unified", "family": "extra-paths",
+      "argv": [], "stdin": "--- a/missing\n+++ b/../bad\n", "files": {},
+      "expect": {"exit": 1, "stdout": "error: unsafe ../bad\nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "p-v4a-destination-before-missing", "group": "v4a", "family": "extra-paths",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: missing\n*** Move to: ../bad\n*** End Patch\n", "files": {},
+      "expect": {"exit": 1, "stdout": "error: unsafe ../bad\nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "p-unified-empty-stripped-path", "group": "unified", "family": "extra-paths",
+      "argv": [], "stdin": "--- a/\n+++ b/\n", "files": {},
+      "expect": {"exit": 1, "stdout": "error: unsafe \nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "p-unicode-byte-sort", "group": "json", "family": "extra-paths",
+      "argv": [], "stdin": "[{\"command\":\"create\",\"path\":\"😀\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"\ue000\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"é\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"z\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"中\",\"file_text\":\"x\"}]", "files": {},
+      "expect": {"exit": 0, "stdout": "A z\nA é\nA 中\nA \ue000\nA 😀\nok: 5 files\n", "changes": {"😀": "x", "\ue000": "x", "é": "x", "z": "x", "中": "x"}}
+    },
+    {
+      "key": "p-v4a-spaces-unicode-crlf-patch", "group": "v4a", "family": "extra-paths",
+      "argv": [], "stdin": " \t*** Begin Patch \t\r\n*** Add File:   docs/é 😀 file.txt  \r\n+first\r\n+second\r\n\r\n \t*** End Patch \t\r\n\r\n", "files": {},
+      "expect": {"exit": 0, "stdout": "A docs/é 😀 file.txt\nok: 1 file\n", "changes": {"docs/é 😀 file.txt": "first\nsecond\n"}}
+    },
+    {
+      "key": "p-unified-spaces-timestamps-prefixes", "group": "unified", "family": "extra-paths",
+      "argv": [], "stdin": "---   b/docs/é file  \told timestamp\n+++   a/docs/é file  \tnew timestamp\n@@ -1 +1 @@\n-x\n+y\n", "files": {"docs/é file": "x\r\n"},
+      "expect": {"exit": 0, "stdout": "M docs/é file\nok: 1 file\n", "changes": {"docs/é file": "y\r\n"}}
+    },
+    {
+      "key": "p-unified-nbsp-is-path-text", "group": "unified", "family": "extra-paths",
+      "argv": [], "stdin": "--- a/ f \n+++ b/ f \n@@ -1 +1 @@\n-x\n+y\n", "files": {" f ": "x\n"},
+      "expect": {"exit": 0, "stdout": "M  f \nok: 1 file\n", "changes": {" f ": "y\n"}}
+    },
+    {
+      "key": "p-v4a-tab-is-path-text", "group": "v4a", "family": "extra-paths",
+      "argv": [], "stdin": "*** Begin Patch\n*** Add File: \tf\t\n+x\n*** End Patch\n", "files": {},
+      "expect": {"exit": 0, "stdout": "A \tf\t\nok: 1 file\n", "changes": {"\tf\t": "x\n"}}
+    },
+    {
+      "key": "u-exact-tier-before-distance", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n-x\n+y\n", "files": {"f": " x \nx\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": " x \ny\n"}}
+    },
+    {
+      "key": "u-equidistant-earlier", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -2 +99 @@\n-x\n+y\n", "files": {"f": "x\nz\nx\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "y\nz\nx\n"}}
+    },
+    {
+      "key": "u-overlapping-nearest", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -2,2 +2 @@\n-x\n-x\n+y\n", "files": {"f": "x\nx\nx\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "x\ny\n"}}
+    },
+    {
+      "key": "u-tier2-context-and-prefix", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1,3 +1,6 @@\n   anchor\n-    old\n+    new\n+ other\n+\t\n+\n  end\n", "files": {"f": "\tanchor \t\n\t  old\n\tend \n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "\tanchor \t\n\t  new\n other\n\t\n\n\tend \n"}}
+    },
+    {
+      "key": "u-tier1-preserves-context", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1,2 +1,2 @@\n anchor\n-x\n+ y \t\n", "files": {"f": "anchor \t\nx \n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "anchor \t\n y \t\n"}}
+    },
+    {
+      "key": "u-blank-first-line-reindent", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1,2 +1,2 @@\n \n-foo\n+bar\n", "files": {"f": "\t\n\tfoo\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "\t\n\tbar\n"}}
+    },
+    {
+      "key": "u-delta-insertion-shifts-nearest", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -0,0 +1,3 @@\n+a\n+b\n+c\n@@ -3 +999 @@\n-x\n+y\n", "files": {"f": "x\nm\nx\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "a\nb\nc\nx\nm\ny\n"}}
+    },
+    {
+      "key": "u-negative-delta", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1,2 +1,0 @@\n-x\n-m\n@@ -3 +500 @@\n-x\n+y\n", "files": {"f": "x\nm\nx\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "y\n"}}
+    },
+    {
+      "key": "u-counts-not-validated", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1,999 +800,0 @@ ignored text\n-x\n+y\n", "files": {"f": "x\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "y\n"}}
+    },
+    {
+      "key": "u-huge-line-number-nearest", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -999999999999999999999999999999999999 +1 @@\n-x\n+y\n", "files": {"f": "x\nz\nx\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "x\nz\ny\n"}}
+    },
+    {
+      "key": "u-empty-old-clamped-to-end", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -999999999999999999999999999999 +1 @@\n+y\n", "files": {"f": "x"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "x\ny\n"}}
+    },
+    {
+      "key": "u-old-only-marker-adds-final-break", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n-old\n\\ No newline at end of file\n+new\n", "files": {"f": "old"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "new\n"}}
+    },
+    {
+      "key": "u-any-backslash-marker", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n-old\n+new\n\\ arbitrary marker\n", "files": {"f": "old\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "new"}}
+    },
+    {
+      "key": "u-eof-context-marker", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n old\n\\ No newline at end of file\n", "files": {"f": "old\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "old"}}
+    },
+    {
+      "key": "u-non-eof-marker-preserves-final-break", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n-old\n+new\n\\ marker\n", "files": {"f": "old\ntail\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "new\ntail\n"}}
+    },
+    {
+      "key": "u-non-eof-retains-no-final-break", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n-old\n+new\n", "files": {"f": "old\ntail"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "new\ntail"}}
+    },
+    {
+      "key": "u-old-only-eof-deletion-final-break", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -2 +2,0 @@\n-old\n\\ marker\n", "files": {"f": "keep\nold"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "keep\n"}}
+    },
+    {
+      "key": "u-creation-only-plus-lines", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- /dev/null\n+++ f\n@@ -0 +1 @@\n-ignored\n+first\n context\n@@ -0 +2 @@\n+second\n\\ marker\n ignored context\n", "files": {},
+      "expect": {"exit": 0, "stdout": "A f\nok: 1 file\n", "changes": {"f": "first\nsecond"}}
+    },
+    {
+      "key": "u-empty-header-only-creation", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- /dev/null\n+++ dir/empty\n", "files": {},
+      "expect": {"exit": 0, "stdout": "A dir/empty\nok: 1 file\n", "changes": {"dir/empty": ""}}
+    },
+    {
+      "key": "u-deletion-does-not-match-hunks", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ /dev/null\n@@ -40 +99 @@\n-completely absent\n", "files": {"f": "x\n"},
+      "expect": {"exit": 0, "stdout": "D f\nok: 1 file\n", "changes": {"f": null}}
+    },
+    {
+      "key": "u-header-pair-overrides-git-rename", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "diff --git a/missing b/missing\nrename from absent\nrename to wrong\n--- a/f\n+++ b/f\n@@ -1 +1 @@\n-x\n+y\n", "files": {"f": "x\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "y\n"}}
+    },
+    {
+      "key": "u-git-fallback-path-with-spaces", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "diff --git a/old é file b/new é file\nindex abc..def\nold mode 100644\nnew mode 100755\nsimilarity index 100%\ndissimilarity index 0%\nIndex: ignored\nother metadata\n", "files": {"old é file": "x\r\ny"},
+      "expect": {"exit": 0, "stdout": "R old é file -> new é file\nok: 1 file\n", "changes": {"old é file": null, "new é file": "x\r\ny"}}
+    },
+    {
+      "key": "u-rename-path-keeps-a-prefix", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "diff --git a/ignored b/ignored\nrename from a/f\nrename to b/f\n", "files": {"a/f": "x"},
+      "expect": {"exit": 0, "stdout": "R a/f -> b/f\nok: 1 file\n", "changes": {"a/f": null, "b/f": "x"}}
+    },
+    {
+      "key": "u-unpaired-header-eof-line", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "diff --git a/f b/f\n--- a/f", "files": {"f": "x\n"},
+      "expect": {"exit": 2, "stdout": "error: parse 3\n", "changes": {}}
+    },
+    {
+      "key": "u-hunk-before-section", "group": "unified", "family": "extra-unified",
+      "argv": ["--format=unified"], "stdin": "prose\n@@ -1 +1 @@\n-x\n+y\n", "files": {"f": "x\n"},
+      "expect": {"exit": 2, "stdout": "error: parse 2\n", "changes": {}}
+    },
+    {
+      "key": "u-prose-ends-body", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "```diff\n--- f\n+++ f\n@@ -1 +1 @@\n-x\n+y\nbody ended\n+ignored\n@@ -2 +2 @@\n-z\n+zz\n```\n", "files": {"f": "x\nz\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "y\nzz\n"}}
+    },
+    {
+      "key": "u-trailing-bare-empty-lines-trimmed", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n-x\n+y\n\n\n", "files": {"f": "x\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "y\n"}}
+    },
+    {
+      "key": "u-prefixed-empty-context-not-trimmed", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n-x\n+y\n \n", "files": {"f": "x\n"},
+      "expect": {"exit": 1, "stdout": "error: no-match f\nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "u-mixed-breaks-first-lf", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n-x\n+y\n", "files": {"f": "x\nz\r\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "y\nz\r\n"}}
+    },
+    {
+      "key": "u-git-unicode-line-separator", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "diff --git a/x\u2028y b/x\u2028y\n@@ -1 +1 @@\n-x\n+y\n", "files": {"x\u2028y": "x\n"},
+      "expect": {"exit": 0, "stdout": "M x\u2028y\nok: 1 file\n", "changes": {"x\u2028y": "y\n"}}
+    },
+    {
+      "key": "u-mode-lookalikes-ignored", "group": "unified", "family": "extra-unified",
+      "argv": [], "stdin": "diff --git a/f b/f\nnew file model is prose\ndeleted file model is prose\n@@ -1 +1 @@\n-x\n+y\n", "files": {"f": "x\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "y\n"}}
+    },
+    {
+      "key": "s-overlapping-occurrences", "group": "search_replace", "family": "extra-search",
+      "argv": [], "stdin": "f\n<<<<<<< SEARCH\nx\nx\n=======\ny\n>>>>>>> REPLACE\n", "files": {"f": "x\nx\nx\n"},
+      "expect": {"exit": 1, "stdout": "error: ambiguous f\nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "s-tier1-before-tier2", "group": "search_replace", "family": "extra-search",
+      "argv": [], "stdin": "f\n<<<<<<< SEARCH\nx\n=======\ny\n>>>>>>> REPLACE\n", "files": {"f": " x\nx \n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": " x\ny\n"}}
+    },
+    {
+      "key": "s-tier2-ambiguity", "group": "search_replace", "family": "extra-search",
+      "argv": [], "stdin": "f\n<<<<<<< SEARCH\nx\n=======\ny\n>>>>>>> REPLACE\n", "files": {"f": " x\n\tx\n"},
+      "expect": {"exit": 1, "stdout": "error: ambiguous f\nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "s-no-internal-or-unicode-trimming", "group": "search_replace", "family": "extra-search",
+      "argv": [], "stdin": "a\n<<<<<<< SEARCH\nx y\n=======\nz\n>>>>>>> REPLACE\nb\n<<<<<<< SEARCH\nx y\n=======\nz\n>>>>>>> REPLACE\nc\n<<<<<<< SEARCH\nx\n=======\nz\n>>>>>>> REPLACE\n", "files": {"a": "x  y\n", "b": "x\ty\n", "c": " x \n"},
+      "expect": {"exit": 1, "stdout": "error: no-match a\nerror: no-match b\nerror: no-match c\nfailed: 3 of 3 edits\n", "changes": {}}
+    },
+    {
+      "key": "s-path-reuse-fences-markers", "group": "search_replace", "family": "extra-search",
+      "argv": [], "stdin": "ignored prose\n \tdocs/é file \t\n```text\n<<<<<<< SEARCH \t\nx\n======= \ny\n>>>>>>> REPLACE\t\n```\n\n```text\n<<<<<<< SEARCH\ny\n=======\nz\n>>>>>>> REPLACE\n```\n", "files": {"docs/é file": "x"},
+      "expect": {"exit": 0, "stdout": "M docs/é file\nok: 1 file\n", "changes": {"docs/é file": "z"}}
+    },
+    {
+      "key": "s-nearest-path-line-wins", "group": "search_replace", "family": "extra-search",
+      "argv": [], "stdin": "wrong\nf\n\n```ignored\n<<<<<<< SEARCH\nx\n=======\ny\n>>>>>>> REPLACE\n", "files": {"f": "x\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "y\n"}}
+    },
+    {
+      "key": "s-first-block-without-path", "group": "search_replace", "family": "extra-search",
+      "argv": [], "stdin": "\n```\n<<<<<<< SEARCH\nx\n=======\ny\n>>>>>>> REPLACE\n", "files": {"f": "x\n"},
+      "expect": {"exit": 2, "stdout": "error: parse 3\n", "changes": {}}
+    },
+    {
+      "key": "s-blank-line-is-not-empty-search", "group": "search_replace", "family": "extra-search",
+      "argv": [], "stdin": "f\n<<<<<<< SEARCH\n\n=======\ny\n>>>>>>> REPLACE\n", "files": {"f": ""},
+      "expect": {"exit": 1, "stdout": "error: no-match f\nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "s-empty-file-create-and-edit", "group": "search_replace", "family": "extra-search",
+      "argv": [], "stdin": "f\n<<<<<<< SEARCH\n=======\n>>>>>>> REPLACE\ng\n<<<<<<< SEARCH\n=======\nx\n>>>>>>> REPLACE\n<<<<<<< SEARCH\nx\n=======\n>>>>>>> REPLACE\n", "files": {},
+      "expect": {"exit": 0, "stdout": "A f\nA g\nok: 2 files\n", "changes": {"f": "", "g": ""}}
+    },
+    {
+      "key": "s-strict-disables-trailing-trim", "group": "search_replace", "family": "extra-search",
+      "argv": ["--strict"], "stdin": "f\n<<<<<<< SEARCH\nx\n=======\ny\n>>>>>>> REPLACE\n", "files": {"f": "x \n"},
+      "expect": {"exit": 1, "stdout": "error: no-match f\nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "v-cursor-scopes-tier-selection", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n@@ anchor\n-x\n+y\n*** End Patch\n", "files": {"f": "x\nanchor\n x \n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "x\nanchor\n y\n"}}
+    },
+    {
+      "key": "v-eof-scopes-tier-selection", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n-x\n+y\n*** End of File\n*** End Patch\n", "files": {"f": "x\n x \n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "x\n y\n"}}
+    },
+    {
+      "key": "v-eof-strict-no-exact-suffix", "group": "v4a", "family": "extra-v4a",
+      "argv": ["--strict"], "stdin": "*** Begin Patch\n*** Update File: f\n-x\n+y\n*** End of File\n*** End Patch\n", "files": {"f": "x\n x \n"},
+      "expect": {"exit": 1, "stdout": "error: no-match f\nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "v-anchor-exact-tier-before-first-position", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n@@ a\n-x\n+y\n*** End Patch\n", "files": {"f": " a \nx\n a \nx\na\nx\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": " a \nx\n a \nx\na\ny\n"}}
+    },
+    {
+      "key": "v-anchor-cursor-scoped-tier", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n@@ skip\n@@ a\n-x\n+y\n*** End Patch\n", "files": {"f": "a\nskip\n a \nx\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "a\nskip\n a \ny\n"}}
+    },
+    {
+      "key": "v-cursor-after-written-lines", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n-x\n+x\n+x\n@@\n-x\n+z\n*** End Patch\n", "files": {"f": "x\nx\nx\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "x\nx\nz\nx\n"}}
+    },
+    {
+      "key": "v-empty-old-insert-top-then-eof", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n+first\n@@\n+last\n*** End of File\n*** End Patch\n", "files": {"f": "tail"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "first\ntail\nlast"}}
+    },
+    {
+      "key": "v-empty-existing-file-keeps-no-final-break", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n+x\n*** End of File\n*** End Patch\n", "files": {"f": ""},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "x"}}
+    },
+    {
+      "key": "v-anchor-is-before-old-lines", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n@@ a\n-a\n+b\n*** End Patch\n", "files": {"f": "a\nx\na\nx\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "a\nx\nb\nx\n"}}
+    },
+    {
+      "key": "v-eof-followed-by-explicit-chunk", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n-a\n+b\n*** End of File\n@@\n+c\n*** End Patch\n", "files": {"f": "a\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "b\nc\n"}}
+    },
+    {
+      "key": "v-body-after-eof-needs-header", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n-a\n+b\n*** End of File\n+c\n*** End Patch\n", "files": {"f": "a\n"},
+      "expect": {"exit": 2, "stdout": "error: parse 6\n", "changes": {}}
+    },
+    {
+      "key": "v-no-edits", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n\n*** End Patch\n", "files": {},
+      "expect": {"exit": 2, "stdout": "error: parse 1\n", "changes": {}}
+    },
+    {
+      "key": "v-missing-end-counts-trailing-blanks", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Add File: f\n+x\n\n\n", "files": {},
+      "expect": {"exit": 2, "stdout": "error: parse 6\n", "changes": {}}
+    },
+    {
+      "key": "v-invalid-first-nonblank-line", "group": "v4a", "family": "extra-v4a",
+      "argv": ["--format=v4a"], "stdin": "\nprose\n*** Begin Patch\n*** End Patch\n", "files": {},
+      "expect": {"exit": 2, "stdout": "error: parse 2\n", "changes": {}}
+    },
+    {
+      "key": "v-add-interior-empty-lines", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Add File: f\n+a\n\n+b\n+\n\n \t\n*** End Patch\n", "files": {},
+      "expect": {"exit": 0, "stdout": "A f\nok: 1 file\n", "changes": {"f": "a\n\nb\n\n"}}
+    },
+    {
+      "key": "v-empty-add-and-delete", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Add File: f\n\n*** Delete File: gone\n \t\n*** End Patch\n", "files": {"gone": ""},
+      "expect": {"exit": 0, "stdout": "A f\nD gone\nok: 2 files\n", "changes": {"f": "", "gone": null}}
+    },
+    {
+      "key": "v-delete-extra-body-line", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Delete File: f\n+x\n*** End Patch\n", "files": {"f": "x\n"},
+      "expect": {"exit": 2, "stdout": "error: parse 3\n", "changes": {}}
+    },
+    {
+      "key": "v-update-without-chunk", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n\n*** End Patch\n", "files": {"f": "x\n"},
+      "expect": {"exit": 2, "stdout": "error: parse 2\n", "changes": {}}
+    },
+    {
+      "key": "v-end-of-file-without-chunk", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n*** End of File\n*** End Patch\n", "files": {"f": "x\n"},
+      "expect": {"exit": 2, "stdout": "error: parse 3\n", "changes": {}}
+    },
+    {
+      "key": "v-move-must-be-first-body-line", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n@@\n*** Move to: g\n*** End Patch\n", "files": {"f": "x\n"},
+      "expect": {"exit": 2, "stdout": "error: parse 4\n", "changes": {}}
+    },
+    {
+      "key": "v-backslash-not-a-body-line", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n\\ marker\n*** End Patch\n", "files": {"f": "x\n"},
+      "expect": {"exit": 2, "stdout": "error: parse 3\n", "changes": {}}
+    },
+    {
+      "key": "v-move-only-preserves-crlf", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n*** Move to: dir/g\n*** End Patch\n", "files": {"f": "x\r\ny"},
+      "expect": {"exit": 0, "stdout": "R f -> dir/g\nok: 1 file\n", "changes": {"f": null, "dir/g": "x\r\ny"}}
+    },
+    {
+      "key": "v-move-to-self-exists", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n*** Move to: f\n*** End Patch\n", "files": {"f": "x\n"},
+      "expect": {"exit": 1, "stdout": "error: exists f\nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "v-strict-tab-anchor", "group": "v4a", "family": "extra-v4a",
+      "argv": ["--strict"], "stdin": "*** Begin Patch\n*** Update File: f\n@@ \ta\t \n-x\n+y\n*** End Patch\n", "files": {"f": "\ta\t\nx\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "\ta\t\ny\n"}}
+    },
+    {
+      "key": "v-unicode-paragraph-separator-path", "group": "v4a", "family": "extra-v4a",
+      "argv": [], "stdin": "*** Begin Patch\n*** Add File: x\u2029y\n+z\n*** End Patch\n", "files": {},
+      "expect": {"exit": 0, "stdout": "A x\u2029y\nok: 1 file\n", "changes": {"x\u2029y": "z\n"}}
+    },
+    {
+      "key": "j-empty-array-no-edits", "group": "json", "family": "extra-json",
+      "argv": [], "stdin": "\n[]\n", "files": {},
+      "expect": {"exit": 2, "stdout": "error: parse 1\n", "changes": {}}
+    },
+    {
+      "key": "j-array-fault-start-line", "group": "json", "family": "extra-json",
+      "argv": [], "stdin": "\n\n[\n{\"command\":\"create\",\"path\":\"f\",\"file_text\":\"x\"},\n{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":0.5,\"new_str\":\"y\"}\n]\n", "files": {},
+      "expect": {"exit": 2, "stdout": "error: parse 3\n", "changes": {}}
+    },
+    {
+      "key": "j-lines-fault-before-files", "group": "json", "family": "extra-json",
+      "argv": [], "stdin": "{\"command\":\"insert\",\"path\":\"missing\",\"insert_line\":0,\"new_str\":\"x\"}\n\n{\"command\":\"wrong\",\"path\":\"f\"}\n", "files": {},
+      "expect": {"exit": 2, "stdout": "error: parse 3\n", "changes": {}}
+    },
+    {
+      "key": "j-overlapping-substrings", "group": "json", "family": "extra-json",
+      "argv": [], "stdin": "{\"command\":\"str_replace\",\"path\":\"f\",\"old_str\":\"aa\",\"new_str\":\"b\"}", "files": {"f": "aaa"},
+      "expect": {"exit": 1, "stdout": "error: ambiguous f\nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "j-no-whitespace-tiers", "group": "json", "family": "extra-json",
+      "argv": [], "stdin": "{\"command\":\"str_replace\",\"path\":\"f\",\"old_str\":\"x\\n\",\"new_str\":\"y\"}", "files": {"f": "x \n"},
+      "expect": {"exit": 1, "stdout": "error: no-match f\nfailed: 1 of 1 edits\n", "changes": {}}
+    },
+    {
+      "key": "j-crlf-normalizes-both-strings", "group": "json", "family": "extra-json",
+      "argv": [], "stdin": "{\"command\":\"str_replace\",\"path\":\"f\",\"old_str\":\"x\\r\\ny\",\"new_str\":\"a\\nb\\r\\nc\"}", "files": {"f": "x\r\ny"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "a\r\nb\r\nc"}}
+    },
+    {
+      "key": "j-insert-empty-file-no-final-break", "group": "json", "family": "extra-json",
+      "argv": [], "stdin": "{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":0,\"new_str\":\"a\\r\\nb\\n\"}", "files": {"f": ""},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "a\nb"}}
+    },
+    {
+      "key": "j-insert-empty-string-noop", "group": "json", "family": "extra-json",
+      "argv": [], "stdin": "{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":1,\"new_str\":\"\"}", "files": {"f": "x\r\n"},
+      "expect": {"exit": 0, "stdout": "ok: 0 files\n", "changes": {}}
+    },
+    {
+      "key": "j-create-byte-for-byte-and-unknown-key", "group": "json", "family": "extra-json",
+      "argv": ["--strict"], "stdin": "{\"command\":\"create\",\"path\":\".hidden/é\",\"file_text\":\"x\\r\\ny\\n\\r\",\"extra\":null}", "files": {},
+      "expect": {"exit": 0, "stdout": "A .hidden/é\nok: 1 file\n", "changes": {".hidden/é": "x\r\ny\n\r"}}
+    },
+    {
+      "key": "j-replace-default-new-string", "group": "json", "family": "extra-json",
+      "argv": [], "stdin": "{\"command\":\"str_replace\",\"path\":\"f\",\"old_str\":\"x\"}", "files": {"f": "x"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": ""}}
+    },
+    {
+      "key": "j-mistyped-new-string", "group": "json", "family": "extra-json",
+      "argv": [], "stdin": "{\"command\":\"str_replace\",\"path\":\"f\",\"old_str\":\"x\",\"new_str\":null}", "files": {"f": "x"},
+      "expect": {"exit": 2, "stdout": "error: parse 1\n", "changes": {}}
+    },
+    {
+      "key": "j-one-trailing-cr-removed", "group": "json", "family": "extra-json",
+      "argv": [], "stdin": "{\"command\":\"insert\",\"path\":\"f\",\"insert_line\":1,\"new_str\":\"a\\r\\r\\nb\\n\"}", "files": {"f": "x\r\n"},
+      "expect": {"exit": 0, "stdout": "M f\nok: 1 file\n", "changes": {"f": "x\r\na\r\r\nb\r\n"}}
+    },
+    {
+      "key": "a-unified-failed-section-rollback", "group": "unified", "family": "extra-atomic",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n-x\n+y\n@@ -1 +1 @@\n-absent\n+oops\n--- f\n+++ f\n@@ -1 +1 @@\n-x\n+z\n", "files": {"f": "x\n"},
+      "expect": {"exit": 1, "stdout": "error: no-match f\nfailed: 1 of 2 edits\n", "changes": {}}
+    },
+    {
+      "key": "a-v4a-failed-move-rollback", "group": "v4a", "family": "extra-atomic",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: f\n*** Move to: new\n-x\n+y\n@@ absent\n+oops\n*** Update File: f\n-x\n+z\n*** Add File: new\n+free\n*** End Patch\n", "files": {"f": "x\n"},
+      "expect": {"exit": 1, "stdout": "error: no-match f\nfailed: 1 of 3 edits\n", "changes": {}}
+    },
+    {
+      "key": "a-search-created-file-seen-after-failure", "group": "search_replace", "family": "extra-atomic",
+      "argv": [], "stdin": "f\n<<<<<<< SEARCH\n=======\nx\n>>>>>>> REPLACE\ng\n<<<<<<< SEARCH\nx\n=======\ny\n>>>>>>> REPLACE\nf\n<<<<<<< SEARCH\nx\n=======\nz\n>>>>>>> REPLACE\n", "files": {},
+      "expect": {"exit": 1, "stdout": "error: missing g\nfailed: 1 of 3 edits\n", "changes": {}}
+    },
+    {
+      "key": "a-json-errors-patch-order-all-codes", "group": "json", "family": "extra-atomic",
+      "argv": [], "stdin": "[{\"command\":\"str_replace\",\"path\":\"f\",\"old_str\":\"absent\"},{\"command\":\"insert\",\"path\":\"missing\",\"insert_line\":0,\"new_str\":\"x\"},{\"command\":\"str_replace\",\"path\":\"dup\",\"old_str\":\"x\"},{\"command\":\"create\",\"path\":\"f\",\"file_text\":\"x\"},{\"command\":\"create\",\"path\":\"../bad\",\"file_text\":\"x\"},{\"command\":\"str_replace\",\"path\":\"f\",\"old_str\":\"x\",\"new_str\":\"y\"}]", "files": {"f": "x", "dup": "xx"},
+      "expect": {"exit": 1, "stdout": "error: no-match f\nerror: missing missing\nerror: ambiguous dup\nerror: exists f\nerror: unsafe ../bad\nfailed: 5 of 6 edits\n", "changes": {}}
+    },
+    {
+      "key": "a-v4a-temporary-create-delete-noop", "group": "v4a", "family": "extra-atomic",
+      "argv": [], "stdin": "*** Begin Patch\n*** Add File: temp\n+x\n*** Delete File: temp\n*** Delete File: f\n*** Add File: f\n+x\n*** End Patch\n", "files": {"f": "x\n"},
+      "expect": {"exit": 0, "stdout": "ok: 0 files\n", "changes": {}}
+    },
+    {
+      "key": "a-unified-sequential-hunks-undo", "group": "unified", "family": "extra-atomic",
+      "argv": [], "stdin": "--- f\n+++ f\n@@ -1 +1 @@\n-x\n+y\n@@ -999 +9 @@\n-y\n+x\n", "files": {"f": "x\n"},
+      "expect": {"exit": 0, "stdout": "ok: 0 files\n", "changes": {}}
+    },
+    {
+      "key": "a-move-chain-final-pair-conditions", "group": "v4a", "family": "extra-atomic",
+      "argv": [], "stdin": "*** Begin Patch\n*** Update File: a\n*** Move to: b\n*** Update File: b\n*** Move to: c\n*** End Patch\n", "files": {"a": "x\n"},
+      "expect": {"exit": 0, "stdout": "D a\nA c\nok: 2 files\n", "changes": {"a": null, "c": "x\n"}}
+    },
+    {
+      "key": "a-move-to-originally-existing-destination", "group": "v4a", "family": "extra-atomic",
+      "argv": [], "stdin": "*** Begin Patch\n*** Delete File: b\n*** Update File: a\n*** Move to: b\n*** End Patch\n", "files": {"a": "x\n", "b": "y\n"},
+      "expect": {"exit": 0, "stdout": "D a\nM b\nok: 2 files\n", "changes": {"a": null, "b": "x\n"}}
+    },
+    {
+      "key": "a-check-add-delete-move-sorted", "group": "v4a", "family": "extra-atomic",
+      "argv": ["--check"], "stdin": "*** Begin Patch\n*** Add File: z/new\n+x\n*** Delete File: b\n*** Update File: old\n*** Move to: a/new\n*** End Patch\n", "files": {"b": "b\n", "old": "o\n"},
+      "expect": {"exit": 0, "stdout": "R old -> a/new\nD b\nA z/new\nok: 3 files\n", "changes": {}}
+    }
+  ]
+}

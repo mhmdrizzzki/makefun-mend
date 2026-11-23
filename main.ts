@@ -91,13 +91,27 @@ function fileText(file: LineFile): string {
   return file.lines.length === 0 ? '' : file.lines.join(file.br) + (file.final ? file.br : '');
 }
 
-const spaces = (s: string): string => s.replace(/^ +/, '').replace(/ +$/, '');
-const indent = (s: string): string => s.match(/^[ \t]*/)![0];
+function spaces(s: string): string {
+  let start = 0;
+  let end = s.length;
+  while (start < end && s[start] === ' ') start += 1;
+  while (end > start && s[end - 1] === ' ') end -= 1;
+  return s.slice(start, end);
+}
+
+function indent(s: string): string {
+  let end = 0;
+  while (end < s.length && (s[end] === ' ' || s[end] === '\t')) end += 1;
+  return s.slice(0, end);
+}
 
 function atTier(line: string, tier: number): string {
   if (tier === 0) return line;
-  const right = line.replace(/[ \t]+$/, '');
-  return tier === 1 ? right : right.replace(/^[ \t]+/, '');
+  let start = 0;
+  let end = line.length;
+  while (end > 0 && (line[end - 1] === ' ' || line[end - 1] === '\t')) end -= 1;
+  if (tier === 2) while (start < end && (line[start] === ' ' || line[start] === '\t')) start += 1;
+  return line.slice(start, end);
 }
 
 interface LineMatch {
@@ -271,7 +285,7 @@ function unifiedEdits(lines: string[], strict: boolean): Edit[] {
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]!;
     if (line === 'diff --git' || line.startsWith('diff --git ')) {
-      const m = /^diff --git a\/(.*) b\/(.*)$/.exec(line);
+      const m = /^diff --git a\/(.*) b\/(.*)$/s.exec(line);
       if (m === null) throw new Exit2(`error: parse ${i + 1}`);
       finish();
       section = begin(m[1]!, m[2]!);
@@ -310,8 +324,8 @@ function unifiedEdits(lines: string[], strict: boolean): Edit[] {
       if (line.startsWith('--- ')) throw new Exit2(`error: parse ${i + 2}`);
       if (line.startsWith('rename from ')) section.renameOld = line.slice(12);
       else if (line.startsWith('rename to ')) section.renameNew = line.slice(10);
-      else if (line.startsWith('new file mode')) section.create = true;
-      else if (line.startsWith('deleted file mode')) section.remove = true;
+      else if (line === 'new file mode' || line.startsWith('new file mode ')) section.create = true;
+      else if (line === 'deleted file mode' || line.startsWith('deleted file mode ')) section.remove = true;
     }
   }
   finish();
@@ -408,7 +422,7 @@ function v4aEdits(lines: string[], strict: boolean): Edit[] {
   let last = lines.length - 1;
   while (blank(lines[last]!)) last -= 1;
   if (lines[last]!.trim() !== '*** End Patch') throw new Exit2(`error: parse ${lines.length + 1}`);
-  const sectionAt = (i: number): RegExpExecArray | null => /^\*\*\* (Add|Delete|Update) File: (.*)$/.exec(lines[i]!);
+  const sectionAt = (i: number): RegExpExecArray | null => /^\*\*\* (Add|Delete|Update) File: (.*)$/s.exec(lines[i]!);
   const edits: Edit[] = [];
   let i = first + 1;
   while (i < last) {
@@ -533,8 +547,8 @@ function jsonEdit(v: unknown): Edit | null {
       const final = before !== '' && before.endsWith(br);
       if (final) lines.pop();
       if (line < 0 || line > lines.length) throw new Fail('no-match', p);
-      lines.splice(line, 0, ...add);
-      tree.now.set(p, lines.length === 0 ? '' : lines.join(br) + (final ? br : ''));
+      const inserted = lines.slice(0, line).concat(add, lines.slice(line));
+      tree.now.set(p, inserted.length === 0 ? '' : inserted.join(br) + (final ? br : ''));
     };
   }
   return null;
