@@ -318,6 +318,50 @@ function unifiedEdits(lines: string[], strict: boolean): Edit[] {
   return edits;
 }
 
+function searchReplaceEdit(path: string, old: string[], next: string[], strict: boolean): Edit {
+  return (tree) => {
+    if (!safe(path)) throw new Fail('unsafe', path);
+    const before = tree.get(path);
+    if (old.length === 0) {
+      if (before !== null) throw new Fail('exists', path);
+      tree.now.set(path, fileText({ lines: next, br: '\n', final: true }));
+      return;
+    }
+    if (before === null) throw new Fail('missing', path);
+    const file = fileLines(before);
+    const match = matchLines(file.lines, old, strict);
+    if (match === null) throw new Fail('no-match', path);
+    if (match.positions.length !== 1) throw new Fail('ambiguous', path);
+    replaceLines(file, { old, next: next.map((text) => ({ text })) }, match.positions[0]!, match.tier);
+    tree.now.set(path, fileText(file));
+  };
+}
+
+function searchReplaceEdits(lines: string[], strict: boolean): Edit[] {
+  const edits: Edit[] = [];
+  let previousPath: string | undefined;
+  let candidatePath: string | undefined;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    if (line.trimEnd() !== '<<<<<<< SEARCH') {
+      if (!blank(line) && !line.trim().startsWith('```')) candidatePath = line.trim();
+      continue;
+    }
+    const path = candidatePath ?? previousPath;
+    if (path === undefined) throw new Exit2(`error: parse ${i + 1}`);
+    let separator = i + 1;
+    while (separator < lines.length && lines[separator]!.trimEnd() !== '=======') separator += 1;
+    let end = separator + 1;
+    while (end < lines.length && lines[end]!.trimEnd() !== '>>>>>>> REPLACE') end += 1;
+    if (separator === lines.length || end >= lines.length) throw new Exit2(`error: parse ${i + 1}`);
+    edits.push(searchReplaceEdit(path, lines.slice(i + 1, separator), lines.slice(separator + 1, end), strict));
+    previousPath = path;
+    candidatePath = undefined;
+    i = end;
+  }
+  return edits;
+}
+
 /** One JSON edit object (SPEC.md section 9), or null when it is not one. */
 function jsonEdit(v: unknown): Edit | null {
   if (v === null || typeof v !== 'object' || Array.isArray(v)) return null;
@@ -436,7 +480,10 @@ function run(args: string[]): { code: number; out: string[] } {
   if (kind === null) return { code: 2, out: ['error: format'] };
   let edits: Edit[];
   try {
-    edits = kind === 'json' ? jsonEdits(text, lines) : kind === 'unified' ? unifiedEdits(lines, strict) : [];
+    edits = kind === 'json' ? jsonEdits(text, lines)
+      : kind === 'unified' ? unifiedEdits(lines, strict)
+      : kind === 'search-replace' ? searchReplaceEdits(lines, strict)
+      : [];
     if (edits.length === 0) throw new Exit2('error: parse 1');
   } catch (e) {
     if (e instanceof Exit2) return { code: 2, out: [e.line] };
