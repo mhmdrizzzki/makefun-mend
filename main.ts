@@ -362,6 +362,127 @@ function searchReplaceEdits(lines: string[], strict: boolean): Edit[] {
   return edits;
 }
 
+interface V4AChunk {
+  anchor: string;
+  change: LineChange;
+  eof: boolean;
+}
+
+function v4aUpdate(path: string, move: string | undefined, chunks: V4AChunk[], strict: boolean): Edit {
+  return (tree) => {
+    if (!safe(path)) throw new Fail('unsafe', path);
+    if (move !== undefined && !safe(move)) throw new Fail('unsafe', move);
+    const before = tree.get(path);
+    if (before === null) throw new Fail('missing', path);
+    if (move !== undefined && tree.get(move) !== null) throw new Fail('exists', move);
+    const file = fileLines(before);
+    let cursor = 0;
+    for (const chunk of chunks) {
+      if (chunk.anchor !== '') {
+        const anchor = matchLines(file.lines, [chunk.anchor], strict, cursor);
+        if (anchor === null) throw new Fail('no-match', path);
+        cursor = anchor.positions[0]! + 1;
+      }
+      let at = chunk.eof ? file.lines.length : cursor;
+      let tier = 0;
+      if (chunk.change.old.length > 0) {
+        const match = matchLines(file.lines, chunk.change.old, strict, cursor, chunk.eof);
+        if (match === null) throw new Fail('no-match', path);
+        at = match.positions[0]!;
+        tier = match.tier;
+      }
+      cursor = at + replaceLines(file, chunk.change, at, tier);
+    }
+    tree.now.set(move ?? path, fileText(file));
+    if (move !== undefined) {
+      tree.now.set(path, null);
+      tree.moves.push({ oldPath: path, newPath: move });
+    }
+  };
+}
+
+function v4aEdits(lines: string[], strict: boolean): Edit[] {
+  const first = lines.findIndex((l) => !blank(l));
+  if (first < 0) throw new Exit2('error: parse 1');
+  if (lines[first]!.trim() !== '*** Begin Patch') throw new Exit2(`error: parse ${first + 1}`);
+  let last = lines.length - 1;
+  while (blank(lines[last]!)) last -= 1;
+  if (lines[last]!.trim() !== '*** End Patch') throw new Exit2(`error: parse ${lines.length + 1}`);
+  const sectionAt = (i: number): RegExpExecArray | null => /^\*\*\* (Add|Delete|Update) File: (.*)$/.exec(lines[i]!);
+  const edits: Edit[] = [];
+  let i = first + 1;
+  while (i < last) {
+    if (blank(lines[i]!)) {
+      i += 1;
+      continue;
+    }
+    const header = sectionAt(i);
+    if (header === null) throw new Exit2(`error: parse ${i + 1}`);
+    const path = spaces(header[2]!);
+    const sectionLine = i + 1;
+    const start = i + 1;
+    let end = start;
+    while (end < last && sectionAt(end) === null) end += 1;
+    let bodyEnd = end;
+    while (bodyEnd > start && blank(lines[bodyEnd - 1]!)) bodyEnd -= 1;
+    if (header[1] === 'Add') {
+      const added: string[] = [];
+      for (let j = start; j < bodyEnd; j += 1) {
+        const line = lines[j]!;
+        if (line !== '' && !line.startsWith('+')) throw new Exit2(`error: parse ${j + 1}`);
+        added.push(line.slice(1));
+      }
+      edits.push((tree) => {
+        if (!safe(path)) throw new Fail('unsafe', path);
+        if (tree.get(path) !== null) throw new Fail('exists', path);
+        tree.now.set(path, fileText({ lines: added, br: '\n', final: true }));
+      });
+    } else if (header[1] === 'Delete') {
+      if (start < bodyEnd) throw new Exit2(`error: parse ${start + 1}`);
+      edits.push((tree) => {
+        if (!safe(path)) throw new Fail('unsafe', path);
+        if (tree.get(path) === null) throw new Fail('missing', path);
+        tree.now.set(path, null);
+      });
+    } else {
+      let j = start;
+      let move: string | undefined;
+      if (j < bodyEnd && lines[j]!.startsWith('*** Move to: ')) {
+        move = spaces(lines[j]!.slice(13));
+        j += 1;
+      }
+      const chunks: V4AChunk[] = [];
+      let chunk: { anchor: string; body: string[]; eof: boolean } | null = null;
+      const finish = (): void => {
+        if (chunk !== null) chunks.push({ anchor: chunk.anchor, change: bodyChange(chunk.body), eof: chunk.eof });
+        chunk = null;
+      };
+      for (; j < bodyEnd; j += 1) {
+        const line = lines[j]!;
+        if (line.startsWith('@@')) {
+          finish();
+          chunk = { anchor: spaces(line.slice(2)), body: [], eof: false };
+        } else if (line === '*** End of File') {
+          if (chunk === null) throw new Exit2(`error: parse ${j + 1}`);
+          chunk.eof = true;
+          finish();
+        } else if (line === '' || [' ', '-', '+'].includes(line[0]!)) {
+          if (chunk === null) {
+            if (chunks.length > 0) throw new Exit2(`error: parse ${j + 1}`);
+            chunk = { anchor: '', body: [], eof: false };
+          }
+          chunk.body.push(line);
+        } else throw new Exit2(`error: parse ${j + 1}`);
+      }
+      finish();
+      if (chunks.length === 0 && move === undefined) throw new Exit2(`error: parse ${sectionLine}`);
+      edits.push(v4aUpdate(path, move, chunks, strict));
+    }
+    i = end;
+  }
+  return edits;
+}
+
 /** One JSON edit object (SPEC.md section 9), or null when it is not one. */
 function jsonEdit(v: unknown): Edit | null {
   if (v === null || typeof v !== 'object' || Array.isArray(v)) return null;
@@ -483,7 +604,7 @@ function run(args: string[]): { code: number; out: string[] } {
     edits = kind === 'json' ? jsonEdits(text, lines)
       : kind === 'unified' ? unifiedEdits(lines, strict)
       : kind === 'search-replace' ? searchReplaceEdits(lines, strict)
-      : [];
+      : v4aEdits(lines, strict);
     if (edits.length === 0) throw new Exit2('error: parse 1');
   } catch (e) {
     if (e instanceof Exit2) return { code: 2, out: [e.line] };
